@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from http import HTTPStatus
+from fastapi import APIRouter, HTTPException
 from db.models.devices import DeviceStatus, BusyStatus
 from pydantic import BaseModel, Field
 from db.requests.devices import DevicesReq as dr
 from helper.adb_helper import get_devices_from_adb
+import requests
 
 class DeviceCreateSchema(BaseModel):
     serial_number: str
@@ -25,7 +27,10 @@ async def get_all_conn_devices() -> None:
     return res
 
 @router.post("/create/")
-async def create_device(device: DeviceCreateSchema) -> DeviceCreateSchema:
+async def create_device(device: DeviceCreateSchema) -> DeviceSchema | dict:
+    devices = get_devices_from_adb()
+    if device.serial_number not in devices:
+        return {"status": "device not found from ADB"}
     await dr.create_device(serial_number=device.serial_number, data=device.data)
     device = await dr.get_device_by_serial_number(serial_number=device.serial_number)
     return device
