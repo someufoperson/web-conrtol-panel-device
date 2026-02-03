@@ -7,8 +7,7 @@ from helper.adb_helper import get_devices_from_adb
 class DeviceCreateSchema(BaseModel):
     serial_number: str
     data: str
-    local_port: int = Field(ge=5555, le=5655)
-    
+
 class DeviceSchema(DeviceCreateSchema):
     status_online: DeviceStatus
     status_busy: BusyStatus
@@ -20,21 +19,20 @@ async def get_all_devices() -> list[DeviceSchema]:
     res = await dr.get_all_devices()
     return res
 
-@router.post("/create/", response_model=DeviceCreateSchema)
-async def create_device(device: DeviceCreateSchema) -> DeviceSchema:
-    await dr.create_device(serial_number=device.serial_number,
-                           data=device.data,
-                           local_port=device.local_port)
+@router.get("/get-all-devices/")
+async def get_all_conn_devices() -> None:
+    res = get_devices_from_adb()
+    return res
+
+@router.post("/create/")
+async def create_device(device: DeviceCreateSchema) -> DeviceCreateSchema:
+    await dr.create_device(serial_number=device.serial_number, data=device.data)
+    device = await dr.get_device_by_serial_number(serial_number=device.serial_number)
     return device
 
 @router.get("/get-all-active-devices/")
 async def get_all_active_devices() -> list[DeviceSchema]:
     res = await dr.get_all_active_devices()
-    return res
-
-@router.get("/get-connected-devices/")
-async def get_all_conn_devices() -> None:
-    res = get_devices_from_adb()
     return res
 
 @router.get("/{device_id}/")
@@ -69,4 +67,3 @@ async def update_status_offline_by_id(device_id: str) -> DeviceSchema:
                                                  status_online=DeviceStatus.OFFLINE)
     res = await dr.get_device_by_serial_number(serial_number=device_id)
     return res
-

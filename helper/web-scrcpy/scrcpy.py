@@ -30,11 +30,11 @@ class Scrcpy:
         return True
 
     def setup_adb_forward(self):
-        subprocess.run([ADB_PATH, "forward", f"tcp:{self.local_port}", "localabstract:scrcpy"], check=True)
+        subprocess.run([ADB_PATH, "-s", self.serial_number, "forward", f"tcp:{self.local_port}", "localabstract:scrcpy"], check=True)
 
     def start_server(self):
         cmd = [
-            ADB_PATH, "shell",
+            ADB_PATH, "-s", self.serial_number, "shell",
             f"CLASSPATH={DEVICE_SERVER_PATH} app_process / com.genymobile.scrcpy.Server 3.1 tunnel_forward=true log_level=VERBOSE video_bit_rate=" + self.video_bit_rate
         ]
         self.android_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -81,11 +81,12 @@ class Scrcpy:
         self.video_callback = video_callback
         self.stop = False
 
-        result = subprocess.run([ADB_PATH, "devices"], capture_output=True, text=True)
-        if "device" not in result.stdout:
-            print("No device found. Please connect your Android device via USB.")
-            return
-        print(result.stdout)
+        #Блокирующая сценарий часть кода, при котором подключенно несколько устройств
+        # result = subprocess.run([ADB_PATH, "devices"], capture_output=True, text=True)
+        # if "device" not in result.stdout:
+        #     print("No device found. Please connect your Android device via USB.")
+        #     return
+        # print(result.stdout)
 
         if not self.push_server_to_device():
             print("Failed to push server files to device.")

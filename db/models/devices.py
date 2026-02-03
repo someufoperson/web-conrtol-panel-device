@@ -18,4 +18,3 @@ class Device(Base):
     data: Mapped[str] = mapped_column(String(length=128))
     status_online: Mapped[DeviceStatus] = mapped_column(default=DeviceStatus.OFFLINE)
     status_busy: Mapped[BusyStatus] = mapped_column(default=BusyStatus.FREE)
-    local_port: Mapped[int] = mapped_column(unique=True)

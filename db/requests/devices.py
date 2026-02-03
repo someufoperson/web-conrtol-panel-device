@@ -58,7 +58,7 @@ class DevicesReq:
             await session.commit()
 
     @staticmethod
-    async def create_device(serial_number: str, data: str, local_port: int):
+    async def create_device(serial_number: str, data: str):
         """
         5. Создание устройства, дописать блок try/except
         """
@@ -66,8 +66,7 @@ class DevicesReq:
             session.add(Device(serial_number=serial_number,
                                data=data,
                                status_online=DeviceStatus.ONLINE,
-                               status_busy=BusyStatus.FREE,
-                               local_port=local_port))
+                               status_busy=BusyStatus.FREE))
             await session.commit()
 
     @staticmethod

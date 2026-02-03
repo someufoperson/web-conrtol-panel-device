@@ -1,5 +1,7 @@
+import asyncio
+import random
 from uuid import UUID
-from db.core.session_maker import async_session
+from db.core.session_maker import async_session, sync_session
 from sqlalchemy import select, update
 from db.models.sessions import Session, SessionStatus, ConnectStatus
 from datetime import datetime, timedelta
@@ -7,17 +9,19 @@ from datetime import datetime, timedelta
 class SessionReq:
 
     @staticmethod
-    async def create_session(device_id: str):
+    async def create_session(device_id: str, inner_port: int, outer_port: int):
         """
         1. Создание сессии, дописать блок try/except
         """
         async with async_session() as session:
             new_session = Session(device_id=device_id,
-                              connect_status=ConnectStatus.DISCONNECTED,
-                              session_status=SessionStatus.ACTIVE)
+                                  connect_status=ConnectStatus.DISCONNECTED,
+                                  session_status=SessionStatus.ACTIVE,
+                                  inner_port=inner_port,
+                                  outer_port=outer_port)
             session.add(new_session)
             await session.commit()
-            return new_session.id
+            return new_session
 
     @staticmethod
     async def update_session_active_by_session_id(session_id: str, status: SessionStatus):
@@ -70,6 +74,32 @@ class SessionReq:
             query = (
                 select(Session)
                 .where(Session.id == session_id)
+            )
+            res = await session.execute(query)
+            return res.scalars().one_or_none()
+
+    @staticmethod
+    async def inner_port_exists(port: int):
+        """
+
+        """
+        async with async_session() as session:
+            query = (
+                select(Session.inner_port)
+                .where(Session.inner_port == port and Session.session_status == SessionStatus.ACTIVE)
+            )
+            res = await session.execute(query)
+            return res.scalars().one_or_none()
+
+    @staticmethod
+    async def outer_port_exists(port: int):
+        """
+
+        """
+        async with async_session() as session:
+            query = (
+                select(Session.outer_port)
+                .where(Session.outer_port == port and Session.session_status == SessionStatus.ACTIVE)
             )
             res = await session.execute(query)
             return res.scalars().one_or_none()
