@@ -1,5 +1,4 @@
 import signal
-
 from fastapi import APIRouter
 import subprocess
 from helper import data_gen
@@ -9,6 +8,10 @@ from db.requests.sessions import SessionReq as sr
 from db.requests.devices import DevicesReq as dr
 import datetime
 import os
+import asyncio
+from helper.log import setup_logger
+
+log = setup_logger()
 
 class SessionCreateSchema(BaseModel):
     device_id: str
@@ -42,6 +45,9 @@ async def create_session(device_id: str) -> dict:
                       "--title", device.data,
                       "--login", str(res.login),
                       "--password", str(res.password)])
+    await sr.insert_pid(res.id, proc.pid)
+    await asyncio.sleep(10)
+    log.info(f"Администратором была создана сессия {res.id} для устройства {device.serial_number}")
     return {"session_id": res.id,
             "link": f"http://127.0.0.1:{outer_port}/{res.id}",
             "login": str(res.login),
@@ -54,6 +60,7 @@ async def update_session_status_deactivated_by_session_id(session_id: str, pid: 
     os.kill(pid, signal.SIGTERM)
     await sr.update_session_active_by_session_id(session_id=session_id,
                                                  status=SessionStatus.EXPIRED)
+    log.info(f"Администратором была отключена сессия {session_id}")
     return {"status": "ok"}
 
 @router.patch("/{device_id}/status-active/")

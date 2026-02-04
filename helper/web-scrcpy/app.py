@@ -1,3 +1,4 @@
+import datetime
 from flask import Flask, render_template, request
 from flask_httpauth import HTTPBasicAuth
 from flask_socketio import SocketIO, emit, send
@@ -5,6 +6,9 @@ from scrcpy import Scrcpy
 import argparse
 import queue
 import requests
+from helper.log import setup_logger
+
+log = setup_logger()
 
 scpy_ctx = None
 client_sid = None
@@ -59,6 +63,7 @@ def handle_connect():
         return False
     else:
         client_sid = request.sid
+        log.info(f"Подключился пользователь с IP: {request.remote_addr}, SESSION_ID:{args.link}")
         scpy_ctx = Scrcpy(serial_number=args.serial_number, local_port=int(args.port))
         scpy_ctx.scrcpy_start(send_video_data, video_bit_rate)
         socketio.start_background_task(video_send_task)
@@ -66,6 +71,7 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     requests.patch(f"http://127.0.0.1:8000/sessions/{args.link}/disconnect/")
+    log.info(f"Отключился пользователь с IP: {request.remote_addr}, SESSION_ID:{args.link}")
     global scpy_ctx, client_sid
     client_sid = None
     scpy_ctx.scrcpy_stop()

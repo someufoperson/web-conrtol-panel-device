@@ -81,7 +81,7 @@ class SessionReq:
     @staticmethod
     async def inner_port_exists(port: int):
         """
-
+        6. Проверка на существование текущей сессии с интересующим портом
         """
         async with async_session() as session:
             query = (
@@ -94,7 +94,7 @@ class SessionReq:
     @staticmethod
     async def outer_port_exists(port: int):
         """
-
+        7. Проверка на существование текущей сессии с интересующим портом
         """
         async with async_session() as session:
             query = (
@@ -103,3 +103,17 @@ class SessionReq:
             )
             res = await session.execute(query)
             return res.scalars().one_or_none()
+
+    @staticmethod
+    async def insert_pid(session_id: str, pid: int):
+        """
+        8. Добавление pid процесса сервера, для дальнейшего disconnect
+        """
+        # session_id = UUID(session_id)
+        async with async_session() as session:
+            await session.execute(
+                update(Session)
+                .where(Session.id == session_id)
+                .values({"pid": pid})
+            )
+            await session.commit()
