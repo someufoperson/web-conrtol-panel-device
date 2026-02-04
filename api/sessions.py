@@ -31,6 +31,9 @@ router = APIRouter(prefix="/sessions", tags=["Сессии"])
 
 @router.post("")
 async def create_session(device_id: str) -> dict:
+    """
+    Создание и запуск сессии (версия, в которой пока что сессии не вечные, переделаем на другой вариант)
+    """
     path = os.getcwd()
     inner_port = await data_gen.inner_port_generator()
     outer_port = await data_gen.outer_port_generator()
@@ -57,6 +60,9 @@ async def create_session(device_id: str) -> dict:
 
 @router.patch("/{session_id}/kill/")
 async def update_session_status_deactivated_by_session_id(session_id: str, pid: int):
+    """
+    Убийство сессии
+    """
     os.kill(pid, signal.SIGTERM)
     await sr.update_session_active_by_session_id(session_id=session_id,
                                                  status=SessionStatus.EXPIRED)
@@ -65,28 +71,43 @@ async def update_session_status_deactivated_by_session_id(session_id: str, pid: 
 
 @router.patch("/{device_id}/status-active/")
 async def update_session_status_active_by_session_id(session_id: str):
+    """
+    Изменение статуса активности
+    """
     await sr.update_session_active_by_session_id(session_id=session_id,
                                                  status=SessionStatus.ACTIVE)
     return {"status": "ok"}
 
 @router.get("")
 async def get_all_sessions():
+    """
+    Получить все сессии
+    """
     res = await sr.get_all_sessions()
     return res
 
 @router.get("/{session_id}")
 async def get_session_by_session_id(session_id: str):
+    """
+    Получить информацию о конкретной сессии
+    """
     res = await sr.get_session_by_id(session_id=session_id)
     return res
 
 @router.patch("/{session_id}/connect/")
 async def update_connect_status_by_session_id(session_id: str):
+    """
+    Изменить статус коннекта сессии (при подключении к сокету) - для автоматической смены статуса
+    """
     await sr.update_session_connect_by_session_id(session_id=session_id,
                                                   status=ConnectStatus.CONNECTED)
     return {"status": "ok"}
 
 @router.patch("/{session_id}/disconnect")
 async def update_disconnect_status_by_session_id(session_id: str):
+    """
+    Изменить статус коннекта сессии (при подключении к сокету) - для автоматической смены статуса
+    """
     await sr.update_session_connect_by_session_id(session_id=session_id,
                                                   status=ConnectStatus.DISCONNECTED)
     return {"status": "ok"}
