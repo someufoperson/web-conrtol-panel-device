@@ -1,5 +1,5 @@
 import subprocess
-ADB_PATH = r"C:\Users\myapo\Desktop\platform-tools\adb.exe"
+ADB_PATH = "adb"
 """
 Функция get_devices должна запустить в цикле с интервалами по 5 секунд и записывать все устройства в
 редиску, чтобы оттуда оперативно можно было подтянуть данные в front. Следовательно, должна быть отдельная
