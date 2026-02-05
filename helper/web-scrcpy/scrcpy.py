@@ -6,7 +6,6 @@ import time
 ADB_PATH = "adb"
 SCRCPY_SERVER_PATH = "helper/web-scrcpy/scrcpy-server"
 DEVICE_SERVER_PATH = "/data/local/tmp/scrcpy-server.jar"
-LOCAL_PORT = 5556
 
 class Scrcpy:
     def __init__(self, serial_number: str, local_port: int):
@@ -23,14 +22,16 @@ class Scrcpy:
         self.local_port = local_port
 
     def push_server_to_device(self):
-        result = subprocess.run([ADB_PATH, "-s", self.serial_number, "push", SCRCPY_SERVER_PATH, DEVICE_SERVER_PATH], capture_output=True, text=True)
+        result = subprocess.run([ADB_PATH, "-s", self.serial_number, "push", SCRCPY_SERVER_PATH, DEVICE_SERVER_PATH],
+                                capture_output=True, text=True)
         if result.returncode != 0:
             print(f"Error pushing server: {result.stderr}")
             return False
         return True
 
     def setup_adb_forward(self):
-        subprocess.run([ADB_PATH, "-s", self.serial_number, "forward", f"tcp:{self.local_port}", "localabstract:scrcpy"], check=True)
+        subprocess.run([ADB_PATH, "-s", self.serial_number, "forward", f"tcp:{self.local_port}", "localabstract:scrcpy"],
+                       check=True)
 
     def start_server(self):
         cmd = [
@@ -80,13 +81,6 @@ class Scrcpy:
         self.video_bit_rate = video_bit_rate
         self.video_callback = video_callback
         self.stop = False
-
-        #Блокирующая сценарий часть кода, при котором подключенно несколько устройств
-        # result = subprocess.run([ADB_PATH, "devices"], capture_output=True, text=True)
-        # if "device" not in result.stdout:
-        #     print("No device found. Please connect your Android device via USB.")
-        #     return
-        # print(result.stdout)
 
         if not self.push_server_to_device():
             print("Failed to push server files to device.")

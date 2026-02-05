@@ -3,8 +3,6 @@ from http import HTTPStatus
 import requests
 from fastapi import APIRouter, HTTPException
 import subprocess
-from urllib3 import HTTPConnectionPool
-
 from helper import data_gen
 from db.models.sessions import SessionStatus, ConnectStatus
 from pydantic import BaseModel
@@ -12,7 +10,6 @@ from db.requests.sessions import SessionReq as sr
 from db.requests.devices import DevicesReq as dr
 import datetime
 import os
-import asyncio
 from helper.log import setup_logger
 
 log = setup_logger()
