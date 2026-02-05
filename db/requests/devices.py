@@ -67,7 +67,11 @@ class DevicesReq:
                                data=data,
                                status_online=DeviceStatus.ONLINE,
                                status_busy=BusyStatus.FREE))
-            await session.commit()
+            try:
+                await session.commit()
+                return True
+            except IntegrityError:
+                return False
 
     @staticmethod
     async def get_all_active_devices():
@@ -81,3 +85,32 @@ class DevicesReq:
             )
             res = await session.execute(query)
             return res.scalars().all()
+
+    @staticmethod
+    async def check_and_upload_online(device_id: str):
+        """
+        7. Проверяет есть ли устройство в базе данных и если есть - меняет его статус на онлайн
+        """
+        async with async_session() as session:
+            await session.execute(
+                update(Device)
+                .where(Device.serial_number == device_id)
+                .values({"status_online": DeviceStatus.ONLINE})
+            )
+            try:
+                await session.commit()
+                return True
+            except IntegrityError:
+                return False
+
+    @staticmethod
+    async def get_all_online_devices():
+        """
+        8. Выдает список всех устройств указанных онлайн
+        """
+        async with async_session() as session:
+            query = (
+                select(Device.serial_number, Device.status_online)
+            )
+            res = await session.execute(query)
+            return res.all()

@@ -4,6 +4,7 @@ from uuid import UUID
 from db.core.session_maker import async_session, sync_session
 from sqlalchemy import select, update
 from db.models.sessions import Session, SessionStatus, ConnectStatus
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
 
 class SessionReq:
@@ -19,9 +20,12 @@ class SessionReq:
                                   session_status=SessionStatus.ACTIVE,
                                   inner_port=inner_port,
                                   outer_port=outer_port)
-            session.add(new_session)
-            await session.commit()
-            return new_session
+            try:
+                session.add(new_session)
+                await session.commit()
+                return new_session
+            except IntegrityError:
+                return False
 
     @staticmethod
     async def update_session_active_by_session_id(session_id: str, status: SessionStatus):
@@ -59,7 +63,6 @@ class SessionReq:
         async with async_session() as session:
             query = (
                 select(Session)
-                .where(Session.session_status == SessionStatus.ACTIVE)
             )
             res = await session.execute(query)
             return res.scalars().all()
@@ -115,5 +118,15 @@ class SessionReq:
                 update(Session)
                 .where(Session.id == session_id)
                 .values({"pid": pid})
+            )
+            await session.commit()
+
+    @staticmethod
+    async def down_all_session():
+        async with async_session() as session:
+            await session.execute(
+                update(Session)
+                .where(Session.session_status == SessionStatus.ACTIVE)
+                .values({"pid": None, "session_status": SessionStatus.NOT_ACTIVE})
             )
             await session.commit()

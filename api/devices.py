@@ -1,7 +1,8 @@
 from http import HTTPStatus
+import redis
 from fastapi import APIRouter, HTTPException
 from db.models.devices import DeviceStatus, BusyStatus
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict
 from db.requests.devices import DevicesReq as dr
 from helper.adb_helper import get_devices_from_adb
 import requests
@@ -10,13 +11,18 @@ class DeviceCreateSchema(BaseModel):
     serial_number: str
     data: str
 
+    class Config:
+        orm = True
+
 class DeviceSchema(DeviceCreateSchema):
     status_online: DeviceStatus
     status_busy: BusyStatus
 
 router = APIRouter(prefix="/devices", tags=["Устройства"])
 
-@router.get("")
+@router.get("",
+            summary="Получить все устройства в базе данных",
+            )
 async def get_all_devices() -> list[DeviceSchema]:
     """
     Получить список всех устройств, записанных в базе данных и их статусы
@@ -24,7 +30,8 @@ async def get_all_devices() -> list[DeviceSchema]:
     res = await dr.get_all_devices()
     return res
 
-@router.get("/get-all-devices/")
+@router.get("/get-all-devices/",
+            summary="Получить все устройства, которые видит ADB")
 async def get_all_conn_devices() -> None:
     """
     Получить список всех устройств, которые подключены по USB и пробиваются в adb
@@ -32,18 +39,28 @@ async def get_all_conn_devices() -> None:
     res = get_devices_from_adb()
     return res
 
-@router.post("/create/")
-async def create_device(device: DeviceCreateSchema) -> DeviceSchema | dict:
+@router.get("/get-unsaved-devices/",
+            summary="Получить все устройства, которые видит ADB и они не сохранены в базе данных")
+async def get_unsaved_devices() -> set:
+    cr = redis.Redis(host="localhost", port=6379, db=0)
+    return cr.smembers("devices")
+
+@router.post("/create/",
+             summary="Создание устройства")
+async def create_device(device: DeviceCreateSchema):
     """
-    Создание записи об устройстве, необходимо указать серийный номер (если такого устройтсва нет в списке подключенных
-    или оно уже есть в базе - будет ошибка) и название устройства в поле data
+    serial_number - серийный номер устройства, data - ФИО
     """
     devices = get_devices_from_adb()
     if device.serial_number not in devices:
-        return {"status": "device not found from ADB"}
-    await dr.create_device(serial_number=device.serial_number, data=device.data)
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail="устройство не найдено в списке подключенных к пк (используется adb)")
+    result = await dr.create_device(serial_number=device.serial_number, data=device.data)
+    if not result:
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail="Устройство уже добавлено в базу данных")
     device = await dr.get_device_by_serial_number(serial_number=device.serial_number)
-    return device
+    return {"status": True, "new_device": device}
 
 @router.get("/get-all-active-devices/")
 async def get_all_active_devices() -> list[DeviceSchema]:

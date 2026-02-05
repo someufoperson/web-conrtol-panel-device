@@ -3,9 +3,11 @@ from db.core.init_db import create_meta
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
+import subprocess
+import os
 from api.routers import all_routers
 
-app = FastAPI()
+app = FastAPI(docs_url="/")
 
 origins = [
     "http://localhost:3000",
@@ -25,5 +27,6 @@ for router in all_routers:
 
 
 if __name__ == "__main__":
+    subprocess.Popen([fr"{os.getcwd()}\venv\Scripts\python.exe", fr"{os.getcwd()}\helper\support_connect_device.py"])
     asyncio.run(create_meta())
     uvicorn.run(app="main:app", reload=True)

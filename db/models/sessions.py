@@ -1,6 +1,6 @@
 import uuid
 from db.core.base import Base
-from sqlalchemy import Uuid, ForeignKey, text, func
+from sqlalchemy import Uuid, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column
 from enum import Enum
 import datetime
@@ -11,8 +11,8 @@ class ConnectStatus(Enum):
     DISCONNECTED = "DISCONNECTED"
 
 class SessionStatus(Enum):
-    EXPIRED = "EXPIRED"
     ACTIVE = "ACTIVE"
+    NOT_ACTIVE = "NOT_ACTIVE"
 
 
 class Session(Base):
@@ -21,9 +21,13 @@ class Session(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid,
                                           primary_key=True,
                                           default=lambda: uuid.uuid4())
-    device_id: Mapped[str] = mapped_column(ForeignKey("devices.serial_number", ondelete="CASCADE"), nullable=False)
+    device_id: Mapped[str] = mapped_column(ForeignKey(
+                                                column="devices.serial_number",
+                                                ondelete="CASCADE"),
+                                           nullable=False,
+                                           unique=True)
     connect_status: Mapped[ConnectStatus] = mapped_column(default=ConnectStatus.DISCONNECTED)
-    session_status: Mapped[SessionStatus] = mapped_column(default=SessionStatus.ACTIVE)
+    session_status: Mapped[SessionStatus] = mapped_column(default=SessionStatus.NOT_ACTIVE)
     inner_port: Mapped[int]
     outer_port: Mapped[int]
     login: Mapped[str] = mapped_column(default=lambda: data_gen.login_generator())
