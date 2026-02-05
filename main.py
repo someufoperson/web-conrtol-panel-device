@@ -27,6 +27,7 @@ for router in all_routers:
 
 
 if __name__ == "__main__":
+    subprocess.run(["docker", "run", "-d" "--name", "redis" "-p", "6379:6379", "redis:latest"])
     subprocess.Popen([fr"{os.getcwd()}\venv\Scripts\python.exe", fr"{os.getcwd()}\helper\support_connect_device.py"])
     asyncio.run(create_meta())
     uvicorn.run(app="main:app", reload=True)
