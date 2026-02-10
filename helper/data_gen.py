@@ -7,7 +7,7 @@ def login_generator():
     return login
 
 def password_generator():
-    password = "".join(random.choices(string.ascii_letters + "!#$%^&*", k=16))
+    password = "".join(random.choices(string.ascii_letters + "!()<>[]", k=16))
     return password
 
 async def inner_port_generator():
