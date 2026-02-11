@@ -120,6 +120,24 @@
             autoConnect: true
         });
 
+        const INACTIVITY_LIMIT = 180000; // 180 000 мс = 180 секунд
+        let inactivityTimer;
+
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+            console.log('User inactive, disconnecting...');
+            socket.disconnect();
+            alert('Вы были отключены от устройства!');
+            }, INACTIVITY_LIMIT);
+        }
+
+        ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel'].forEach(event => {
+        window.addEventListener(event, resetInactivityTimer);
+        });
+
+        resetInactivityTimer();
+
         var input = null;
         function initInput(width, height) {
             function input_data_cb(data) {
