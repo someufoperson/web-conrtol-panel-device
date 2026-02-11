@@ -25,10 +25,11 @@ async def main():
     await create_meta()
     await nullable_table()
     sub.start_redis_docker()
+    sub.start_tg_bot()
     sub.status_online_helper()
 
 app.include_router(devices_router)
 
 if __name__ == "__main__":
     asyncio.run(main())
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, log_level="critical")

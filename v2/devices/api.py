@@ -142,6 +142,7 @@ async def update_status_inactive(serial_number: str, db: SessionDep) -> DeviceSc
     await down_socket_now(device_full)
     res = await DeviceRepo(db = db).update_device(serial_number = serial_number,
                                                   session_status = SessionStatus.INACTIVE,
+                                                  connection_status = ConnectionStatus.DISCONNECTED,
                                                   pid = None)
     return DeviceSchema.model_validate(res)
 

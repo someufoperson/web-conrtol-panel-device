@@ -1,5 +1,7 @@
 db.sqlite3
 *.log
 venv/
+.venv/
+device-manager/
 .idea
 __pycache__/

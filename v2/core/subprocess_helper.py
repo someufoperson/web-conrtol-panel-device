@@ -35,3 +35,8 @@ def server_down(pid: int) -> None:
 
 def status_online_helper():
     subprocess.Popen([fr"{os.getcwd()}\venv\Scripts\python.exe", fr"{os.getcwd()}\core\device_connecting.py"])
+
+def start_tg_bot():
+    path_to_python = fr"{os.getcwd()}\.venv\Scripts\python.exe"
+    print(path_to_python)
+    subprocess.Popen([path_to_python, fr"{os.getcwd()}\telegram_bot\main.py"])
