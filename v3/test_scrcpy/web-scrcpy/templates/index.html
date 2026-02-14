@@ -115,10 +115,19 @@
             }
         });
 
-        const socket = io({
-            reconnection: false,
-            autoConnect: true
-        });
+function getSerialFromUrl() {
+    const path = window.location.pathname;
+    // Ожидаем формат /device/XXXXXXXX
+    const parts = path.split('/');
+    return parts[parts.length - 1];
+}
+
+const socket = io({
+    query: { device: getSerialFromUrl() },
+    binaryType: 'arraybuffer',
+    reconnection: false,
+    autoConnect: true
+});
 
         const INACTIVITY_LIMIT = 180000; // 180 000 мс = 180 секунд
         let inactivityTimer;

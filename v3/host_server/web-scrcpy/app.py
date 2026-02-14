@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()
+
 from flask import Flask, render_template, request
 from flask_httpauth import HTTPBasicAuth
 from flask_socketio import SocketIO, emit, send
@@ -20,29 +23,24 @@ video_bit_rate = "1024000"
 app = Flask(__name__)
 auth = HTTPBasicAuth()
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, async_mode=None)
+socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins="*", binary=True)
 
-def create_route(link: str, title: str, serv_login: str, serv_password: str):
-
-    @auth.verify_password
-    def verify_password(username, password):
-        if username == serv_login and password == serv_password:
-            return username
-
-    @app.route(f'/{link}')
-    @auth.login_required
+def create_route(serial_number: str, title: str):
+    @app.route(f'/{serial_number}')
     def index():
         return render_template('index.html', title=title)
 
-    @app.route(f'/{link}/check-health')
+    @app.route(f'/{serial_number}/check-health')
     def check_health():
         return {"status": "ok"}
 
 def video_send_task():
     global client_sid
+    print("video_send_task started")
     while client_sid != None:
         try:
             message = message_queue.get(timeout=0.01)
+            print(f"video_send_task: got {len(message)} bytes, sending to {client_sid}")
             socketio.emit('video_data', message, to=client_sid)
         except queue.Empty:
             pass
@@ -50,9 +48,10 @@ def video_send_task():
             print(f"Error sending data: {e}")
         finally:
             socketio.sleep(0.001)
-    print(f"video_send_task stopped")
+    print("video_send_task stopped")
 
 def send_video_data(data):
+    print(f"send_video_data called with {len(data)} bytes")
     message_queue.put(data)
 
 
@@ -60,42 +59,41 @@ def send_video_data(data):
 def handle_connect():
     global scpy_ctx, client_sid
 
-    requests.patch(f"http://127.0.0.1:8000/sessions/{args.link}/connect/")
+    # requests.patch(f"http://127.0.0.1:8000/v1/devices/update-status/connect/{args.serial_number}/connect")
     if scpy_ctx is not None:
         return False
     else:
         client_sid = request.sid
-        logger.info(f"Подключился пользователь с IP: {request.remote_addr}, SESSION_ID:{args.link}")
+        logger.info(f"Подключился пользователь с IP: {request.remote_addr}, SESSION_ID:{args.serial_number}")
         scpy_ctx = Scrcpy(serial_number=args.serial_number, local_port=int(args.port))
         scpy_ctx.scrcpy_start(send_video_data, video_bit_rate)
         socketio.start_background_task(video_send_task)
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    requests.patch(f"http://127.0.0.1:8000/sessions/{args.link}/disconnect/")
-    logger.info(f"Отключился пользователь с IP: {request.remote_addr}, SESSION_ID:{args.link}")
+    # requests.patch(f"http://127.0.0.1:8000/v1/devices/update-status/connect/{args.serial_number}/disconnect/")
+    logger.info(f"Отключился пользователь с IP: {request.remote_addr}, SESSION_ID:{args.serial_number}")
     global scpy_ctx, client_sid
     client_sid = None
     scpy_ctx.scrcpy_stop()
     scpy_ctx = None
+
 
 @socketio.on('control_data')
 def handle_control_data(data):
     global scpy_ctx
     scpy_ctx.scrcpy_send_control(data)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Web server')
     parser.add_argument('--video_bit_rate', default="1024000", help='scrcpy video bit rate')
     parser.add_argument('--serial_number')
     parser.add_argument('--port')
-    parser.add_argument('--link')
     parser.add_argument('--outer_port')
     parser.add_argument('--title')
-    parser.add_argument('--login')
-    parser.add_argument('--password')
     args = parser.parse_args()
-    create_route(args.link, args.title, args.login, args.password)
+    create_route(args.serial_number, args.title)
     outer_port = args.outer_port
     video_bit_rate = args.video_bit_rate
     socketio.run(app, host='0.0.0.0', port=int(outer_port), allow_unsafe_werkzeug=True)

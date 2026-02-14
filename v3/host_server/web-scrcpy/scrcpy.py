@@ -4,7 +4,7 @@ import socket
 import time
 
 ADB_PATH = "adb"
-SCRCPY_SERVER_PATH = "helper/web-scrcpy/scrcpy-server"
+SCRCPY_SERVER_PATH = "web-scrcpy/scrcpy-server"
 DEVICE_SERVER_PATH = "/data/local/tmp/scrcpy-server.jar"
 
 class Scrcpy:
@@ -132,4 +132,6 @@ class Scrcpy:
         print("Scrcpy stopped")
 
     def scrcpy_send_control(self, data):
+        if isinstance(data, str):
+            data = data.encode('utf-8')
         self.control_socket.send(data)

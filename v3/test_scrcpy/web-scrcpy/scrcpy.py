@@ -3,12 +3,8 @@ import subprocess
 import socket
 import time
 
-ADB_PATH = "adb"
-SCRCPY_SERVER_PATH = "web-scrcpy/scrcpy-server"
-DEVICE_SERVER_PATH = "/data/local/tmp/scrcpy-server.jar"
-
 class Scrcpy:
-    def __init__(self, serial_number: str, local_port: int):
+    def __init__(self, serial_number: str, local_port: int, adb_path: str, server_path: str):
         self.video_socket = None
         self.audio_socket = None
         self.control_socket = None
@@ -18,25 +14,42 @@ class Scrcpy:
         self.audio_thread = None
         self.control_thread = None
         self.android_process = None
+
         self.serial_number = serial_number
         self.local_port = local_port
+        self.adb_path = adb_path
+        self.server_path = server_path
+        self.stop = False
 
     def push_server_to_device(self):
-        result = subprocess.run([ADB_PATH, "-s", self.serial_number, "push", SCRCPY_SERVER_PATH, DEVICE_SERVER_PATH],
-                                capture_output=True, text=True)
+        device_server_path = "/data/local/tmp/scrcpy-server.jar"
+        result = subprocess.run(
+            [self.adb_path, "-s", self.serial_number, "push", r"C:\Users\myapo\Documents\Python\PythonProject\ADB_control_panel\v3\test_scrcpy\web-scrcpy\scrcpy-server", device_server_path],
+            capture_output=True, text=True
+        )
         if result.returncode != 0:
             print(f"Error pushing server: {result.stderr}")
             return False
         return True
 
     def setup_adb_forward(self):
-        subprocess.run([ADB_PATH, "-s", self.serial_number, "forward", f"tcp:{self.local_port}", "localabstract:scrcpy"],
-                       check=True)
+        subprocess.run(
+            [self.adb_path, "-s", self.serial_number, "forward", f"tcp:{self.local_port}", "localabstract:scrcpy"],
+            check=True
+        )
+
+    def remove_adb_forward(self):
+        subprocess.run(
+            [self.adb_path, "-s", self.serial_number, "forward", "--remove", f"tcp:{self.local_port}"],
+            capture_output=True
+        )
 
     def start_server(self):
+        device_server_path = "/data/local/tmp/scrcpy-server.jar"
         cmd = [
-            ADB_PATH, "-s", self.serial_number, "shell",
-            f"CLASSPATH={DEVICE_SERVER_PATH} app_process / com.genymobile.scrcpy.Server 3.1 tunnel_forward=true log_level=VERBOSE video_bit_rate=" + self.video_bit_rate
+            self.adb_path, "-s", self.serial_number, "shell",
+            f"CLASSPATH={device_server_path} app_process / com.genymobile.scrcpy.Server 3.1 "
+            f"tunnel_forward=true log_level=VERBOSE video_bit_rate={self.video_bit_rate}"
         ]
         self.android_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         while not self.stop:
@@ -50,12 +63,16 @@ class Scrcpy:
 
     def receive_video_data(self):
         print("Receiving video data (H.264)...")
+        # пропускаем первый байт (dummy)
         self.video_socket.recv(1)
         while not self.stop:
-            data = self.video_socket.recv(20480)
-            if not data:
+            try:
+                data = self.video_socket.recv(262144)  # 256 КБ
+                if not data:
+                    break
+                self.video_callback(data)
+            except socket.error:
                 break
-            self.video_callback(data)
         print("Video data reception stopped")
 
     def receive_audio_data(self):
@@ -74,7 +91,7 @@ class Scrcpy:
             data = self.control_socket.recv(1024)
             if not data:
                 break
-            print("Control Mesg:", data)
+            # Обработка входящих управляющих сообщений (от устройства) – пока игнорируем
         print("Control connection stopped")
 
     def scrcpy_start(self, video_callback, video_bit_rate):
@@ -89,7 +106,7 @@ class Scrcpy:
         self.setup_adb_forward()
         self.android_thread = Thread(target=self.start_server, daemon=True)
         self.android_thread.start()
-        time.sleep(1)
+        time.sleep(2)
 
         # video connection
         self.video_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -101,7 +118,7 @@ class Scrcpy:
         self.audio_socket.connect(('localhost', self.local_port))
         print("Audio connection established")
 
-        # contorl connection
+        # control connection
         self.control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.control_socket.connect(('localhost', self.local_port))
         print("Control connection established")
@@ -117,19 +134,32 @@ class Scrcpy:
     def scrcpy_stop(self):
         print("Stopping Scrcpy")
         self.stop = True
-        self.video_socket.shutdown(socket.SHUT_RDWR)
-        self.control_socket.shutdown(socket.SHUT_RDWR)
-        self.video_socket.shutdown(socket.SHUT_RDWR)
-        self.audio_socket.close()
-        self.control_socket.close()
-        self.video_socket.close()
+        # закрываем сокеты для выхода из циклов
+        if self.video_socket:
+            self.video_socket.shutdown(socket.SHUT_RDWR)
+            self.video_socket.close()
+        if self.audio_socket:
+            self.audio_socket.close()
+        if self.control_socket:
+            self.control_socket.shutdown(socket.SHUT_RDWR)
+            self.control_socket.close()
 
-        self.video_thread.join()
-        self.audio_thread.join()
-        self.control_thread.join()
-        self.android_process.terminate()
-        self.android_thread.join()
+        if self.video_thread:
+            self.video_thread.join()
+        if self.audio_thread:
+            self.audio_thread.join()
+        if self.control_thread:
+            self.control_thread.join()
+
+        if self.android_process:
+            self.android_process.terminate()
+        if self.android_thread:
+            self.android_thread.join()
+
+        self.remove_adb_forward()
         print("Scrcpy stopped")
 
     def scrcpy_send_control(self, data):
+        if isinstance(data, str):
+            data = data.encode('utf-8')
         self.control_socket.send(data)
